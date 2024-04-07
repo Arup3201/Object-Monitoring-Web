@@ -1,9 +1,3 @@
-from flask import Flask, render_template
-from flask_cors import CORS
-from flask_socketio import SocketIO
-from threading import Thread
-import json
-
 import argparse
 import os
 import platform
@@ -11,6 +5,9 @@ import sys
 from pathlib import Path
 
 import torch
+
+from flask import Flask, render_template, Response
+from flask_cors import CORS
 
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[0]  # YOLO root directory
@@ -25,31 +22,13 @@ from utils.general import (LOGGER, Profile, check_file, check_img_size, check_im
 from utils.plots import Annotator, colors, save_one_box
 from utils.torch_utils import select_device, smart_inference_mode
 
-from deepsort_pytorch.deep_sort import DeepSort
-from deepsort_pytorch.utils.parser import get_config
-
-app = Flask(__name__)
-CORS(app)
-socketio = SocketIO(app, cors_allowed_origins="*")
-
-@socketio.on("connect")
-def start_detection():
-    thread = Thread(target = socketio.start_background_task, args=[gen_tracking_data])
-    thread.daemon = True
-    thread.start()
-
-def gen_tracking_data():
-    for trackings in run_tracking(source="https://www.youtube.com/watch?v=E8LsKcVpL5A"):
-        socketio.emit("track", json.dumps(trackings))
-
-@app.route('/')
-def index():
-    return render_template('home.html')
+from deep_sort_pytorch.deep_sort import DeepSort
+from deep_sort_pytorch.utils.parser import get_config
 
 def initialize_deepsort():
     # create the DeepSort configuration object and load settings from YAML file
     cfg_deep = get_config()
-    cfg_deep.merge_from_file("deepsort_pytorch/configs/deep_sort.yaml")
+    cfg_deep.merge_from_file("deep_sort_pytorch/configs/deep_sort.yaml")
 
     # initialize the deep sort tracker
     deepsort = DeepSort(cfg_deep.DEEPSORT.REID_CKPT, 
@@ -65,14 +44,58 @@ def initialize_deepsort():
 
 deepsort = initialize_deepsort()
 
-def class_names():
-    coco_class_names = ['person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bs', 'train', 'truck', 'boat', 'traffic light', 'fire hydrant', 'stop sign', 'parking meter', 'bench', 'bird', 'cat', 'dog', 'horse', 'sheep', 'cow', 'elephant', 'bear', 'zebra', 'giraffe', 'backpack', 'mbrella', 'handbag', 'tie', 'sitcase', 'frisbee', 'skis', 'snowboard', 'sports ball', 'kite', 'baseball bat', 'baseball glove', 'skateboard', 'srfboard', 'tennis racket', 'bottle', 'wine glass', 'cp', 'fork', 'knife', 'spoon', 'bowl', 'banana', 'apple', 'sandwich', 'orange', 'broccoli',  'carrot', 'hot dog', 'pizza', 'dont', 'cake', 'chair', 'coch', 'potted plant', 'bed', 'dining table', 'toilet', 'tv', 'laptop', 'mose', 'remote', 'keyboard', 'cell phone', 'microwave',  'oven',  'toaster', 'sink', 'refrigerator', 'book', 'clock', 'vase', 'scissors', 'teddy bear', 'hair drier', 'toothbrsh']
+def class_name(i):
+    coco_class_names = ['person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck', 'boat', 'traffic light', 'fire hydrant', 'stop sign', 'parking meter', 'bench', 'bird', 'cat', 'dog', 'horse', 'sheep', 'cow', 'elephant', 'bear', 'zebra', 'giraffe', 'backpack', 'mbrella', 'handbag', 'tie', 'sitcase', 'frisbee', 'skis', 'snowboard', 'sports ball', 'kite', 'baseball bat', 'baseball glove', 'skateboard', 'srfboard', 'tennis racket', 'bottle', 'wine glass', 'cp', 'fork', 'knife', 'spoon', 'bowl', 'banana', 'apple', 'sandwich', 'orange', 'broccoli',  'carrot', 'hot dog', 'pizza', 'dont', 'cake', 'chair', 'coch', 'potted plant', 'bed', 'dining table', 'toilet', 'tv', 'laptop', 'mose', 'remote', 'keyboard', 'cell phone', 'microwave',  'oven',  'toaster', 'sink', 'refrigerator', 'book', 'clock', 'vase', 'scissors', 'teddy bear', 'hair drier', 'toothbrsh']
 
-    return coco_class_names
+    return coco_class_names[i]
+
+def color_label(label):
+    color = None
+
+    if label == 0: # person
+        color = (240, 62, 62) # #f03e3e
+    elif label == 1: # bicycle
+        color = (66, 99, 235) # #4263eb
+    elif label == 2: # car
+        color = (214, 51, 108) # #d6336c
+    elif label == 3: # motorcycle
+        color = (174, 62, 201) # #ae3ec9
+    elif label == 5: # bus
+        color = (112, 72, 232) # #7048e8
+    elif label == 7: # truck
+        color = (16, 152, 173) # #1098ad
+
+    return color
+
+def draw_bounding_boxes(frame, bbox_xyxys, identities, categories):
+    tracked_frame = frame.copy()
+
+    for i, xyxy in enumerate(bbox_xyxys):
+        x1, y1, x2, y2 = [int(i) for i in xyxy]
+
+        cat = int(categories[i])
+        id = int(identities[i])
+        color = color_label(cat)
+
+        # If the object is not the ones we are concerned about just ignore
+        if not color:
+            continue
+        
+        cv2.rectangle(tracked_frame, (x1, y1), (x2, y2), color, 4)
+
+        name = class_name(cat)
+        text = f"{id}:{name}"
+        text_size = cv2.getTextSize(text, 0, fontScale=0.5, thickness=2)[0]
+        c2 = x1 + text_size[0], y1 + text_size[1] + 3
+        cv2.rectangle(tracked_frame, (x1, y1), (x2, y1 + text_size[1] + 3), color, -1)
+        cv2.putText(tracked_frame, text, (x1+text_size[0], y1 + 1), 0, 0.5, color=[255, 255, 255], thickness=2, lineType=cv2.LINE_AA)
+
+    return tracked_frame
+
 
 @smart_inference_mode()
 def run_tracking(
-        weights=ROOT / 'yolov9-c.pt',  # model path or triton URL
+        weights=ROOT / 'yolov9-e.pt',  # model path or triton URL
         source=ROOT / 'data/images',  # file/dir/URL/glob/screen/0(webcam)
         data=ROOT / 'data/coco.yaml',  # dataset.yaml path
         imgsz=(640, 640),  # inference size (height, width)
@@ -99,6 +122,8 @@ def run_tracking(
         half=False,  # use FP16 half-precision inference
         dnn=False,  # use OpenCV DNN for ONNX inference
         vid_stride=1,  # video frame-rate stride
+        show_on_web=False, # set to True if you want tracked frames to show on websites
+        save_to_db=False, # set to True if you want to get the tracking data and save it to database
 ):
     source = str(source)
     # save_img = not nosave and not source.endswith('.txt')  # save inference images
@@ -157,7 +182,6 @@ def run_tracking(
         # Second-stage classifier (optional)
         # pred = utils.general.apply_classifier(pred, classifier_model, im, im0s)
 
-        trackings = {'trackings': []}
         # Process predictions
         for i, det in enumerate(pred):  # per image
             seen += 1
@@ -170,7 +194,10 @@ def run_tracking(
             p = Path(p)  # to Path
             s += '%gx%g ' % im.shape[2:]  # print string
             
-            ims = im0s.copy()
+            ims = im0.copy()
+            trackings = {'trackings': []}
+            tracked_frame = ims.copy()
+
             if len(det):
                 # Rescale boxes from img_size to im0 size
                 det[:, :4] = scale_boxes(im.shape[2:], det[:, :4], im0.shape).round()
@@ -202,28 +229,50 @@ def run_tracking(
 
                 xywhs = torch.tensor(xywh_boxes)
                 confs = torch.tensor(confs)
+                oids = torch.tensor(oids)
+
                 outputs = deepsort.update(xywhs, confs, oids, ims)
 
-                if outputs>1:
-                    xyxys = outputs[:, :, :-4]
-                    identities = outputs[:, :, -2]
-                    object_ids = outputs[:, :, -1]
+                if len(outputs)>0:
+                    xyxys = outputs[:, :4]
+                    identities = outputs[:, -2]
+                    object_ids = outputs[:, -1]
                     
-                    for i, bbox_xyxy in enumerate(xyxys):
-                        x1, y1, x2, y2 = [int(i) for i in bbox_xyxy]
-                        width = abs(x1 - x2)
-                        height = abs(y1 - y2)
-                        cat =class_names()[int(object_ids[i])]
-                        id = int(identities[i])
+                    if show_on_web:
+                        tracked_frame = draw_bounding_boxes(ims, xyxys, identities, object_ids)
+                        yield tracked_frame
 
-                        trackings['trackings'].append({'id': id, 'class': cat, 'bounding_box': [x1, y1, width, height]})
-                        
-        # Print time (inference-only)
-        LOGGER.info(f"{s}{'' if len(det) else '(no detections), '}{dt[1].dt * 1E3:.1f}ms")
-        
-        yield trackings
+                    if save_to_db:
+                        for i, bbox_xyxy in enumerate(xyxys):
+                            x1, y1, x2, y2 = [int(i) for i in bbox_xyxy]
+                            width = abs(x1 - x2)
+                            height = abs(y1 - y2)
+                            cat = class_name(int(object_ids[i]))
+                            id = int(identities[i])
 
+                            trackings['trackings'].append({'id': id, 'class': cat, 'bounding_box': [x1, y1, width, height]})
+
+                        yield trackings
+
+app = Flask(__name__)
+CORS(app)
+
+@app.route('/')
+def index():
+    return render_template('home.html')
+
+def gen_frames():
+    for tracked_frame in run_tracking(source="https://www.youtube.com/watch?v=F5Q5ViU8QR0", show_on_web=True):
+        _, buffer = cv2.imencode('.jpg', tracked_frame)
+        frame = buffer.tobytes()
+
+        yield (b'--frame\r\n'
+                       b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+
+@app.route('/video_tracking', method=['GET'])
+async def video_tracking():
+    return Response(gen_frames(), mimetype="multipart/x-mixed-replace; boundary=frame")
 
 if __name__=="__main__":
     # app.run(debug=True, host="0.0.0.0", port="9090")
-    socketio.run(app, host="0.0.0.0", port="5000")
+    app.run(host="0.0.0.0", port="5000")

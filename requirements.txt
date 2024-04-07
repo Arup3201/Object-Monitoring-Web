@@ -47,7 +47,5 @@ albumentations>=1.0.3
 pycocotools>=2.0
 easydict
 flask
-flask-socketio
-flask-cors
+flask[async]
 gdown
-fastreid

@@ -79,63 +79,30 @@ cd ../../..
 Notice:
 If compiling failed, the simplist way is to **Upgrade your pytorch >= 1.1 and torchvision >= 0.3" and you can avoid the troublesome compiling problems which are most likely caused by either `gcc version too low` or `libraries missing`.
 
-5. (Optional) Prepare third party submodules
-
-[fast-reid](https://github.com/JDAI-CV/fast-reid)
-
-This library supports bagtricks, AGW and other mainstream ReID methods through providing an fast-reid adapter.
-
-to prepare our bundled fast-reid, then follow instructions in its README to install it.
-
-Please refer to `configs/fastreid.yaml` for a sample of using fast-reid. See [Model Zoo](https://github.com/JDAI-CV/fast-reid/blob/master/docs/MODEL_ZOO.md) for available methods and trained models.
-
-[MMDetection](https://github.com/open-mmlab/mmdetection)
-
-This library supports Faster R-CNN and other mainstream detection methods through providing an MMDetection adapter.
-
-to prepare our bundled MMDetection, then follow instructions in its README to install it.
-
-Please refer to `configs/mmdet.yaml` for a sample of using MMDetection. See [Model Zoo](https://github.com/open-mmlab/mmdetection/blob/master/docs/model_zoo.md) for available methods and trained models.
-
-Run
-
+5. Run demo
 ```
-git submodule update --init --recursive
-```
-
-
-6. Run demo
-```
-usage: deepsort.py [-h]
-                   [--fastreid]
-                   [--config_fastreid CONFIG_FASTREID]
-                   [--mmdet]
-                   [--config_mmdetection CONFIG_MMDETECTION]
-                   [--config_detection CONFIG_DETECTION]
-                   [--config_deepsort CONFIG_DEEPSORT] [--display]
-                   [--frame_interval FRAME_INTERVAL]
-                   [--display_width DISPLAY_WIDTH]
-                   [--display_height DISPLAY_HEIGHT] [--save_path SAVE_PATH]
-                   [--cpu] [--camera CAM]
-                   VIDEO_PATH         
+usage: python yolov3_deepsort.py VIDEO_PATH
+                                [--help]
+                                [--frame_interval FRAME_INTERVAL]
+                                [--config_detection CONFIG_DETECTION]
+                                [--config_deepsort CONFIG_DEEPSORT]
+                                [--display]
+                                [--display_width DISPLAY_WIDTH]
+                                [--display_height DISPLAY_HEIGHT]
+                                [--save_path SAVE_PATH]          
+                                [--cpu]          
 
 # yolov3 + deepsort
-python deepsort.py [VIDEO_PATH]
+python yolov3_deepsort.py [VIDEO_PATH]
 
 # yolov3_tiny + deepsort
-python deepsort.py [VIDEO_PATH] --config_detection ./configs/yolov3_tiny.yaml
+python yolov3_deepsort.py [VIDEO_PATH] --config_detection ./configs/yolov3_tiny.yaml
 
 # yolov3 + deepsort on webcam
-python3 deepsort.py /dev/video0 --camera 0
+python3 yolov3_deepsort.py /dev/video0 --camera 0
 
 # yolov3_tiny + deepsort on webcam
-python3 deepsort.py /dev/video0 --config_detection ./configs/yolov3_tiny.yaml --camera 0
-
-# fast-reid + deepsort
-python deepsort.py [VIDEO_PATH] --fastreid [--config_fastreid ./configs/fastreid.yaml]
-
-# MMDetection + deepsort
-python deepsort.py [VIDEO_PATH] --mmdet [--config_mmdetection ./configs/mmdet.yaml]
+python3 yolov3_deepsort.py /dev/video0 --config_detection ./configs/yolov3_tiny.yaml --camera 0
 ```
 Use `--display` to enable display.  
 Results will be saved to `./output/results.avi` and `./output/results.txt`.

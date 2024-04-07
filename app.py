@@ -88,7 +88,7 @@ def draw_bounding_boxes(frame, bbox_xyxys, identities, categories):
         text_size = cv2.getTextSize(text, 0, fontScale=0.5, thickness=2)[0]
         c2 = x1 + text_size[0], y1 + text_size[1] + 3
         cv2.rectangle(tracked_frame, (x1, y1), (x2, y1 + text_size[1] + 3), color, -1)
-        cv2.putText(tracked_frame, text, (x1+text_size[0], y1 + 1), 0, 0.5, color=[255, 255, 255], thickness=2, lineType=cv2.LINE_AA)
+        cv2.putText(tracked_frame, text, (x1, y1+3), 0, 0.5, color=[255, 255, 255], thickness=2, lineType=cv2.LINE_AA)
 
     return tracked_frame
 
@@ -269,10 +269,10 @@ def gen_frames():
         yield (b'--frame\r\n'
                        b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
 
-@app.route('/video_tracking', method=['GET'])
+@app.route('/video_tracking', methods=['GET'])
 async def video_tracking():
     return Response(gen_frames(), mimetype="multipart/x-mixed-replace; boundary=frame")
 
 if __name__=="__main__":
     # app.run(debug=True, host="0.0.0.0", port="9090")
-    app.run(host="0.0.0.0", port="5000")
+    app.run(host="0.0.0.0", port="5000", debug=True)

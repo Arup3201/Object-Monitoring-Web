@@ -25,44 +25,29 @@
         padding: 0;
     }
 
+    h1 {
+        text-align: center;
+    }
+
     .container {
         width: 80%;
         margin: auto;
     }
 
-    #video-container {
-        width: 350px;
-        height: 120px;
+    #tracking {
+        width: 100%;
     }
+
 </style>
 
 <body>
     <div class="container">
-        <h1>Object Tracking with Tensorflow</h1>
+        <h1>Object Tracking with YoloV9</h1>
         <div id="video-container">
             <!-- The video frames of tracking objects will be rendered here. -->
+            <img id="tracking" src="http://127.0.0.1:5000/video_tracking" alt="tracking video coming from server" />
         </div>
     </div>
 </body>
-
-<script>
-
-    window.addEventListener('load', function(event) {
-        const video = document.getElementById('video-container');
-        fetch("/video_tracking", {
-            method: "GET", 
-            headers: {
-                'Content-Type': "multipart/x-mixed-replace; boundary=frame"
-            }
-        })
-        .then(response => response.blob())
-        .then(data => console.log(data))
-        .catch(function(error) {
-            console.error(error);
-        })
-        
-    });
-
-</script>
 
 </html>

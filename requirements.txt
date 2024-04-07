@@ -48,5 +48,4 @@ pycocotools>=2.0
 easydict
 flask
 flask-cors
-flask-socketio
 gdown
